@@ -1,17 +1,29 @@
-name: vulnerability scan workflow
-
-on: push
-
+name: CXGO SCAN
+'on':
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
 jobs:
-    meterian_scan:
-        name: Meterian client scan
-        runs-on: ubuntu-latest
-        steps: 
-          - name: Checkout
-            uses: actions/checkout@v2
-          - name: Scan project with the Meterian client
-            uses: MeterianHQ/meterian-github-action@v1.0.10
-            env:
-                METERIAN_API_TOKEN: ${{ secrets.METERIAN_API_TOKEN }}
-            with:
-                cli_args: "" #[ Meterian CLI Options ]
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+      - if: github.event_name == 'push'
+        name: Extract Branch Name
+        run: 'echo "BRANCH=$(echo ${GITHUB_REF##*/})" >> $GITHUB_ENV'
+      - if: github.event_name == 'pull_request'
+        name: Extract Branch Name
+        run: 'echo "BRANCH=$(echo ${GITHUB_HEAD_REF})" >> $GITHUB_ENV'
+      - name: Install cxgo-cli npm package
+        run: npm install -g @cxgo/cli
+      - name: Scan project sources with cxgo-cli
+        run: >-
+          cxgo-cli scan:start --project-id=5
+          --api-url=https://api.checkmarx.net  --scan-tag=${GITHUB_SHA}
+          --source-folder=${GITHUB_WORKSPACE} --branch-name=${BRANCH}
+        env:
+          CXGO_TOKEN: '${{ secrets.CXGO_TOKEN }}'
